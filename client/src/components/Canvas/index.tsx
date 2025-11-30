@@ -12,9 +12,10 @@ interface CanvasProps {
     players: Record<string, Position>;
     objects: WorldObject[];
     myId: string | null;
+    messages: { fromId: string; text: string }[];
 }
 
-export const GameCanvas: React.FC<CanvasProps> = ({ players, objects, myId }: CanvasProps) => {
+export const GameCanvas: React.FC<CanvasProps> = ({ players, objects, myId, messages }: CanvasProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -63,8 +64,24 @@ export const GameCanvas: React.FC<CanvasProps> = ({ players, objects, myId }: Ca
             ctx.fillStyle = 'black';
             ctx.font = '10px Arial';
             ctx.fillText(id.slice(0, 4), pos.x + canvas.width / 2, pos.y + canvas.height / 2 - 5);
+
+            // Draw Chat Bubble
+            const lastMsg = messages.filter(m => m.fromId === id).slice(-1)[0];
+            if (lastMsg) {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                const textWidth = ctx.measureText(lastMsg.text).width;
+                const bubbleX = pos.x + canvas.width / 2 - textWidth / 2;
+                const bubbleY = pos.y + canvas.height / 2 - 30;
+
+                ctx.fillRect(bubbleX - 5, bubbleY - 15, textWidth + 10, 20);
+                ctx.strokeRect(bubbleX - 5, bubbleY - 15, textWidth + 10, 20);
+
+                ctx.fillStyle = 'black';
+                ctx.fillText(lastMsg.text, bubbleX, bubbleY);
+            }
         });
-    }, [players, objects, myId]);
+    }, [players, objects, myId, messages]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

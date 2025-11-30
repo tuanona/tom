@@ -26,6 +26,8 @@ type GameUpdate struct {
 	Type    string                    `json:"type"`
 	ID      string                    `json:"id,omitempty"`
 	Players map[string]PlayerPosition `json:"players,omitempty"`
+	Message string                    `json:"message,omitempty"`
+	FromID  string                    `json:"fromId,omitempty"`
 }
 
 type Client struct {
@@ -124,18 +126,30 @@ func (c *Client) readPump() {
 		}
 
 		var msg struct {
-			Type string  `json:"type"`
-			X    float64 `json:"x"`
-			Y    float64 `json:"y"`
+			Type    string  `json:"type"`
+			X       float64 `json:"x"`
+			Y       float64 `json:"y"`
+			Message string  `json:"message"`
 		}
-		if err := json.Unmarshal(message, &msg); err == nil && msg.Type == "Move" {
-			c.hub.mu.Lock()
-			c.hub.players[c.id] = PlayerPosition{X: msg.X, Y: msg.Y}
-			update := GameUpdate{Type: "WorldUpdate", Players: c.hub.players}
-			c.hub.mu.Unlock()
 
-			bytes, _ := json.Marshal(update)
-			c.hub.broadcast <- bytes
+		if err := json.Unmarshal(message, &msg); err == nil {
+			if msg.Type == "Move" {
+				c.hub.mu.Lock()
+				c.hub.players[c.id] = PlayerPosition{X: msg.X, Y: msg.Y}
+				update := GameUpdate{Type: "WorldUpdate", Players: c.hub.players}
+				c.hub.mu.Unlock()
+
+				bytes, _ := json.Marshal(update)
+				c.hub.broadcast <- bytes
+			} else if msg.Type == "Chat" {
+				chatMsg := GameUpdate{
+					Type:    "Chat",
+					FromID:  c.id,
+					Message: msg.Message,
+				}
+				bytes, _ := json.Marshal(chatMsg)
+				c.hub.broadcast <- bytes
+			}
 		}
 	}
 }

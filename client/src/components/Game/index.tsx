@@ -8,6 +8,8 @@ export const Game: React.FC = () => {
     const [objects, setObjects] = useState<any[]>([]);
     const [myId, setMyId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [messages, setMessages] = useState<{ fromId: string; text: string }[]>([]);
+    const [chatInput, setChatInput] = useState('');
     const wsRef = useRef<WebSocket | null>(null);
     const wallet = useTonWallet();
 
@@ -36,6 +38,8 @@ export const Game: React.FC = () => {
                     setMyId(msg.id);
                 } else if (msg.type === 'WorldUpdate') {
                     setPlayers(msg.players);
+                } else if (msg.type === 'Chat') {
+                    setMessages(prev => [...prev.slice(-4), { fromId: msg.fromId, text: msg.message }]);
                 }
             } catch (e) {
                 console.error('Failed to parse game message', e);
@@ -57,6 +61,9 @@ export const Game: React.FC = () => {
 
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
+            // Don't move if typing in chat
+            if (document.activeElement?.tagName === 'INPUT') return;
+
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !myId) return;
 
             const currentPos = players[myId] || { x: 0, y: 0 };
@@ -93,6 +100,17 @@ export const Game: React.FC = () => {
         return () => globalThis.removeEventListener('keydown', handleKeyPress);
     }, [players, myId]);
 
+    const handleSendChat = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim() || !wsRef.current) return;
+
+        wsRef.current.send(JSON.stringify({
+            type: 'Chat',
+            message: chatInput
+        }));
+        setChatInput('');
+    };
+
     const handleMint = async () => {
         if (!wallet) {
             alert('Please connect your wallet first!');
@@ -104,13 +122,37 @@ export const Game: React.FC = () => {
     const myPosition = (myId && players[myId]) ? players[myId] : { x: 0, y: 0 };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem', position: 'relative' }}>
             {error && (
                 <div style={{ color: 'red', marginBottom: '1rem' }}>
                     {error}
                 </div>
             )}
-            <GameCanvas players={players} objects={objects} myId={myId} />
+
+            <div style={{ position: 'relative' }}>
+                <GameCanvas players={players} objects={objects} myId={myId} messages={messages} />
+
+                {/* Chat Overlay */}
+                <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ maxHeight: '100px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {messages.map((m, i) => (
+                            <div key={i} style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                                <b>{m.fromId.slice(0, 4)}:</b> {m.text}
+                            </div>
+                        ))}
+                    </div>
+                    <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={e => setChatInput(e.target.value)}
+                            placeholder="Type a message..."
+                            style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', backgroundColor: 'rgba(255,255,255,0.8)' }}
+                        />
+                    </form>
+                </div>
+            </div>
+
             <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <div>
                     Position: ({Math.round(myPosition.x)}, {Math.round(myPosition.y)})
