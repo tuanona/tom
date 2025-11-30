@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"tom-server/internal/auth"
 	"tom-server/internal/db"
 	"tom-server/internal/game"
-	"tom-server/internal/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -48,6 +48,23 @@ func main() {
 		// Auth
 		api.POST("/auth/init", auth.InitSession)
 		api.POST("/auth/verify", auth.VerifySession)
+		api.POST("/auth/invite", auth.ValidateInvite(database))
+
+		// World
+		api.GET("/world/objects", func(c *gin.Context) {
+			var objects []struct {
+				ID   int     `json:"id" db:"id"`
+				X    float64 `json:"x" db:"x"`
+				Y    float64 `json:"y" db:"y"`
+				Type string  `json:"type" db:"type"`
+			}
+			err := database.Select(&objects, "SELECT * FROM objects")
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch objects"})
+				return
+			}
+			c.JSON(http.StatusOK, objects)
+		})
 
 		// Game WebSocket
 		api.GET("/ws/game", func(c *gin.Context) {

@@ -5,10 +5,19 @@ import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
 
 export const Game: React.FC = () => {
     const [players, setPlayers] = useState<Record<string, Position>>({});
+    const [objects, setObjects] = useState<any[]>([]);
     const [myId, setMyId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const wallet = useTonWallet();
+
+    // Fetch Objects
+    useEffect(() => {
+        fetch('http://localhost:8080/api/world/objects')
+            .then(res => res.json())
+            .then(data => setObjects(data))
+            .catch(err => console.error('Failed to fetch objects', err));
+    }, []);
 
     // WebSocket Connection
     useEffect(() => {
@@ -101,7 +110,7 @@ export const Game: React.FC = () => {
                     {error}
                 </div>
             )}
-            <GameCanvas players={players} myId={myId} />
+            <GameCanvas players={players} objects={objects} myId={myId} />
             <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <div>
                     Position: ({Math.round(myPosition.x)}, {Math.round(myPosition.y)})
