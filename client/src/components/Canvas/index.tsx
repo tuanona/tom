@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Position } from '../../types/game';
+import { type Position } from '../../types/game';
 
 interface WorldObject {
     id: number;

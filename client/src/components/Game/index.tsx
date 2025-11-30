@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { GameCanvas } from '../Canvas';
-import { Position, GameUpdate } from '../../types/game';
+import { type Position, type GameUpdate } from '../../types/game';
 import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
 
 export const Game: React.FC = () => {
