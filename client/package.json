@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tma.js/sdk": "^3.1.2",
     "@tonconnect/sdk": "^3.3.1",
     "@tonconnect/ui-react": "^2.3.1",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

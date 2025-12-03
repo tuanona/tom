@@ -3,7 +3,11 @@ import { GameCanvas } from '../Canvas';
 import { type Position, type GameUpdate } from '../../types/game';
 import { TonConnectButton, useTonWallet } from '@tonconnect/ui-react';
 
-export const Game: React.FC = () => {
+interface GameProps {
+    onLogout: () => void;
+}
+
+export const Game: React.FC<GameProps> = ({ onLogout }) => {
     const [players, setPlayers] = useState<Record<string, Position>>({});
     const [objects, setObjects] = useState<any[]>([]);
     const [myId, setMyId] = useState<string | null>(null);
@@ -12,6 +16,11 @@ export const Game: React.FC = () => {
     const [chatInput, setChatInput] = useState('');
     const wsRef = useRef<WebSocket | null>(null);
     const wallet = useTonWallet();
+
+    const handleLogout = () => {
+        localStorage.removeItem('tom_session_token');
+        onLogout();
+    };
 
     // Fetch Objects
     useEffect(() => {
@@ -37,7 +46,7 @@ export const Game: React.FC = () => {
                 if (msg.type === 'Welcome') {
                     setMyId(msg.id);
                 } else if (msg.type === 'WorldUpdate') {
-                    setPlayers(msg.players);
+                    setPlayers(msg.players || {});
                 } else if (msg.type === 'Chat') {
                     setMessages(prev => [...prev.slice(-4), { fromId: msg.fromId, text: msg.message }]);
                 }
@@ -119,10 +128,29 @@ export const Game: React.FC = () => {
         alert('Minting feature coming soon to Go backend!');
     };
 
-    const myPosition = (myId && players[myId]) ? players[myId] : { x: 0, y: 0 };
+    const myPosition = (myId && players && players[myId]) ? players[myId] : { x: 0, y: 0 };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem', position: 'relative' }}>
+            {/* Header with Logout */}
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>Tom Metaverse</h1>
+                <button
+                    onClick={handleLogout}
+                    style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                    }}
+                >
+                    Logout
+                </button>
+            </div>
+
             {error && (
                 <div style={{ color: 'red', marginBottom: '1rem' }}>
                     {error}

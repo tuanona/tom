@@ -1,67 +1,44 @@
-# TOM: Decentralized Metaverse Platform
+# Tom - Decentralized Metaverse with Centralized Passport
 
-## Vision
-TOM is a decentralized metaverse platform designed to empower individuals to host their own "worlds" or "gardens". Unlike centralized platforms (Roblox, Minecraft servers), TOM envisions a future where every user runs their own server instance, accessible via a unified client or standard web protocols. Access is controlled via Telegram Mini Apps (TMA) and TON Blockchain authentication, ensuring a secure and decentralized identity layer.
+**Tom** is a metaverse platform where the **Worlds** are decentralized, but the **Identity** is centralized via Telegram.
 
-## Architecture
+## 🌍 The Concept
+Imagine a universe with many different planets (Servers). Anyone can host a planet.
+*   **Planets (Servers)**: Decentralized. Hosted by anyone (e.g., one in Africa, one in Indonesia).
+*   **Passport (TMA)**: Centralized. Your single identity (Telegram Account) that lets you travel to *any* planet.
 
-### Monorepo Structure
-The project is structured as a Monorepo (`tom/`) containing both the backend and frontend to ensure type safety and cohesive development.
+## 🏗 Architecture
 
-```
-tom/
-├── server/          # Go Backend (The "World Server")
-├── client/          # React Frontend (The "Window" into the world)
-└── run.ps1          # Unified orchestration script
-```
+### 1. The Passport (`/tma`)
+*   **Role**: The Central Authority.
+*   **Hosted By**: The "Official" entity (or you, if you run your own ecosystem).
+*   **Secrets**: Holds the `BOT_TOKEN`.
+*   **Function**:
+    *   Runs the **Telegram Bot**.
+    *   Verifies user identity via Telegram.
+    *   Signs "Travel Visas" (Tokens) that allow users to log in to Game Servers.
+*   **Tech**: Bun, React, Telegram SDK.
 
-### Backend (`server/`)
--   **Language**: Go (Golang) 1.23+
--   **Framework**: Gin (HTTP), Gorilla WebSocket (Real-time)
--   **Database**: SQLite (Embedded, CGO-free via `modernc.org/sqlite`)
--   **Key Components**:
-    -   `cmd/api/main.go`: Entry point. Initializes DB, Hub, and HTTP server.
-    -   `internal/game/game.go`: The heart of the multiplayer logic. Manages the `Hub`, client connections, and broadcasts `WorldUpdate` messages.
-    -   `internal/auth/auth.go`: Handles TMA validation and TON Connect signaling (Placeholder for now).
-    -   `internal/db/db.go`: Manages SQLite connection and schema migrations.
+### 2. The World (`/server`)
+*   **Role**: The Game Instance.
+*   **Hosted By**: Community Members (You, me, anyone).
+*   **Secrets**: NONE (No Bot Token needed!).
+*   **Function**:
+    *   Hosts the game world (players, chat, physics).
+    *   Trusts the "Travel Visas" signed by the Passport.
+*   **Tech**: Go (Golang).
 
-### Frontend (`client/`)
--   **Runtime**: Bun
--   **Framework**: React + Vite
--   **Language**: TypeScript
--   **Integration**:
-    -   `@tma.js/sdk`: For running natively inside Telegram.
-    -   `@tonconnect/ui-react`: For wallet connection and NFT interactions.
--   **Rendering**: HTML5 Canvas (Custom implementation in `GameCanvas`).
+### 3. The Viewport (`/client`)
+*   **Role**: The Window.
+*   **Function**: Connects to a World and displays the graphics.
+*   **Tech**: React, Vite.
 
-## Features
+## 🚀 How it Works
+1.  **Host a World**: You run `./server`. It generates a QR Code.
+2.  **Open Passport**: User opens the **Tom Bot** on Telegram.
+3.  **Scan**: User scans the World's QR Code with the Passport (TMA).
+4.  **Login**: The Passport tells the World "This is User X, they are legit." The World logs them in.
 
-### 1. Multiplayer Interaction
--   **Real-time Movement**: Users control an avatar (currently a square) using arrow keys.
--   **Broadcasting**: Movement updates are sent via WebSocket to the Go server, which broadcasts the new state to all connected clients.
--   **State Management**: The server maintains an in-memory map of players and persists coordinates to SQLite.
-
-### 2. Authentication & Identity
--   **TON Connect**: Users connect their TON wallets to identify themselves.
--   **TMA Integration**: Designed to run as a Telegram Mini App, using Telegram's user data for session verification.
-
-### 3. Decentralization
--   **Self-Hosting**: The architecture is lightweight enough to run on a personal PC.
--   **Portability**: SQLite database ensures data is local and portable.
-
-## Future Roadmap
-
-### Short Term
--   **NFT Integration**: Minting game assets (skins, items) directly to the TON blockchain.
--   **Chat System**: Proximity-based voice or text chat using the existing WebSocket connection.
--   **Asset Loading**: Replacing the canvas squares with pixel art or 3D assets (Three.js).
-
-### Long Term
--   **Federation**: Allowing different TOM servers to communicate, letting users "travel" between worlds.
--   **Scripting**: A Lua or JS sandbox to allow server owners to script their own game logic (like Roblox).
--   **Economy**: A native token or TON-based economy for trading assets between worlds.
-
-## Technical Constraints & Decisions
--   **Why Go?**: High performance, easy concurrency for WebSockets, and single-binary deployment.
--   **Why Bun?**: Fast startup times and modern tooling for the frontend.
--   **Why SQLite?**: Zero-configuration database perfect for self-hosting.
+## 🛠 Setup
+*   **To Host a World**: Just run `.\run.ps1` (Windows) or `docker-compose up`. No config needed!
+*   **To Run the Passport**: You need a Telegram Bot Token. See `tma/README.md`.

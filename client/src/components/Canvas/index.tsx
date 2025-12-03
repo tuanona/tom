@@ -51,6 +51,8 @@ export const GameCanvas: React.FC<CanvasProps> = ({ players, objects, myId, mess
         });
 
         // Draw players
+        const HARDCODED_ADMIN_ID = "user_12345678789"; // CHANGE THIS to match server!
+
         Object.entries(players).forEach(([id, pos]) => {
             ctx.fillStyle = id === myId ? 'blue' : 'red';
             ctx.fillRect(
@@ -60,10 +62,13 @@ export const GameCanvas: React.FC<CanvasProps> = ({ players, objects, myId, mess
                 20
             );
 
-            // Draw label
+            // Draw label with owner badge
+            const isOwner = id === HARDCODED_ADMIN_ID;
+            const label = id.slice(0, 8) + (isOwner ? ' (Tuan)' : '');
+
             ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-            ctx.fillText(id.slice(0, 4), pos.x + canvas.width / 2, pos.y + canvas.height / 2 - 5);
+            ctx.font = isOwner ? 'bold 10px Arial' : '10px Arial';
+            ctx.fillText(label, pos.x + canvas.width / 2, pos.y + canvas.height / 2 - 5);
 
             // Draw Chat Bubble
             const lastMsg = messages.filter(m => m.fromId === id).slice(-1)[0];

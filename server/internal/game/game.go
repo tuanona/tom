@@ -25,7 +25,7 @@ type PlayerPosition struct {
 type GameUpdate struct {
 	Type    string                    `json:"type"`
 	ID      string                    `json:"id,omitempty"`
-	Players map[string]PlayerPosition `json:"players,omitempty"`
+	Players map[string]PlayerPosition `json:"players"`
 	Message string                    `json:"message,omitempty"`
 	FromID  string                    `json:"fromId,omitempty"`
 }

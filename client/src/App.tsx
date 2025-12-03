@@ -10,7 +10,7 @@ function App() {
       {!isAuthenticated ? (
         <Login onLogin={() => setIsAuthenticated(true)} />
       ) : (
-        <Game />
+        <Game onLogout={() => setIsAuthenticated(false)} />
       )}
     </div>
   );
