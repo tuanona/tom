@@ -1,18 +1,15 @@
 import { useState } from 'react';
 import { Game } from './components/Game';
 import { Login } from './components/Login';
+import type { AuthSession } from './lib/protocol';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<AuthSession | null>(null);
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f1f5f9' }}>
-      {!isAuthenticated ? (
-        <Login onLogin={() => setIsAuthenticated(true)} />
-      ) : (
-        <Game onLogout={() => setIsAuthenticated(false)} />
-      )}
-    </div>
+  return session ? (
+    <Game session={session} onLogout={() => setSession(null)} />
+  ) : (
+    <Login onLogin={setSession} />
   );
 }
 

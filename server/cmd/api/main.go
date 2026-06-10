@@ -6,10 +6,14 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"tom-server/internal/auth"
 	"tom-server/internal/db"
 	"tom-server/internal/game"
+	"tom-server/internal/world"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -26,21 +30,43 @@ func main() {
 	}
 	defer database.Close()
 
+	// Sessions (real tokens for QR/TMA logins)
+	if err := auth.InitSessionStore(database); err != nil {
+		log.Fatal("Failed to init session store:", err)
+	}
+	auth.DevMode = os.Getenv("BOT_TOKEN") == ""
+	if auth.DevMode {
+		log.Println("⚠️  DEV MODE: BOT_TOKEN not set — guests may join the world without Telegram auth.")
+	}
+
+	// World: load persisted island or generate the first one
+	w, err := world.Load(database)
+	if err != nil {
+		log.Fatal("Failed to load world:", err)
+	}
+	if w == nil {
+		log.Println("🌱 No world found — generating the floating island...")
+		w = world.GenerateIsland()
+		if err := w.SaveIfDirty(database); err != nil {
+			log.Fatal("Failed to save generated world:", err)
+		}
+	}
+	log.Printf("🏝️  World ready: %dx%dx%d voxels\n", w.W, w.H, w.D)
+
 	// Initialize Game Hub
-	hub := game.NewHub(database)
+	hub := game.NewHub(database, w)
 	go hub.Run()
 
-	// Prompt for Admin ID
-	fmt.Println("\n================================================")
-	fmt.Println("   Tom Metaverse Server Setup")
-	fmt.Println("================================================")
-	fmt.Print("Enter your Telegram User ID (get from @userinfobot): ")
-
-	var adminIDInput string
-	fmt.Scanln(&adminIDInput)
-
-	// Parse and store admin ID
-	adminIDInt, err := strconv.ParseInt(adminIDInput, 10, 64)
+	// Admin ID: env first (ADMIN_TELEGRAM_ID), interactive prompt as fallback
+	adminEnv := os.Getenv("ADMIN_TELEGRAM_ID")
+	if adminEnv == "" {
+		fmt.Println("\n================================================")
+		fmt.Println("   Tom Metaverse Server Setup")
+		fmt.Println("================================================")
+		fmt.Print("Enter your Telegram User ID (get from @userinfobot, or set ADMIN_TELEGRAM_ID): ")
+		fmt.Scanln(&adminEnv)
+	}
+	adminIDInt, err := strconv.ParseInt(adminEnv, 10, 64)
 	if err != nil || adminIDInt == 0 {
 		log.Println("⚠️  Invalid admin ID, using default. Server will require invite codes for all users.")
 		auth.HardcodedAdminID = 0
@@ -84,31 +110,17 @@ func main() {
 		api.POST("/auth/init", auth.InitSession)
 		api.POST("/auth/verify", auth.VerifySession)
 		api.POST("/auth/invite", auth.ValidateInvite(database))
+		api.POST("/auth/invite-login", auth.InviteLogin(database))
 		api.POST("/auth/qr/init", auth.InitQR)
 		api.GET("/auth/qr/poll", auth.PollQR)
 		api.POST("/auth/qr/scan", auth.ScanQR)
 		api.POST("/auth/tma", auth.ValidateTMA)
+		api.GET("/auth/me", auth.Me)
 
 		// Admin & Decentralized Flow
 		api.POST("/admin/claim", auth.ClaimAdmin)
 		api.POST("/admin/invite", auth.GenerateInvite)
 		api.POST("/auth/check-invite", auth.ValidateInviteCode)
-
-		// World
-		api.GET("/world/objects", func(c *gin.Context) {
-			var objects []struct {
-				ID   int     `json:"id" db:"id"`
-				X    float64 `json:"x" db:"x"`
-				Y    float64 `json:"y" db:"y"`
-				Type string  `json:"type" db:"type"`
-			}
-			err := database.Select(&objects, "SELECT * FROM objects")
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch objects"})
-				return
-			}
-			c.JSON(http.StatusOK, objects)
-		})
 
 		// Game WebSocket
 		api.GET("/ws/game", func(c *gin.Context) {
@@ -116,6 +128,53 @@ func main() {
 		})
 	}
 
+	// TonConnect manifest, built per-request so wallets can verify the app
+	// no matter which URL this instance runs behind.
+	r.GET("/tonconnect-manifest.json", func(c *gin.Context) {
+		base := auth.RequestBaseURL(c)
+		c.JSON(http.StatusOK, gin.H{
+			"url":     base,
+			"name":    "Tom's World",
+			"iconUrl": base + "/vite.svg",
+		})
+	})
+
+	// Serve the built web client when available: one shared URL is all an
+	// owner needs to hand out for friends to join their instance.
+	if dist := findClientDist(); dist != "" {
+		log.Printf("🕹️  Serving web client from %s\n", dist)
+		r.NoRoute(func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+				return
+			}
+			p := filepath.Join(dist, filepath.Clean("/"+c.Request.URL.Path))
+			if st, err := os.Stat(p); err == nil && !st.IsDir() {
+				c.File(p)
+				return
+			}
+			c.File(filepath.Join(dist, "index.html"))
+		})
+	} else {
+		log.Println("ℹ️  client/dist not found — API only (run `bun run build` in client/, or set CLIENT_DIST)")
+	}
+
 	log.Println("Server starting on port 8080")
 	r.Run(":8080")
+}
+
+func findClientDist() string {
+	if env := os.Getenv("CLIENT_DIST"); env != "" {
+		return env
+	}
+	for _, p := range []string{"../client/dist", "./client/dist", "client/dist"} {
+		if st, err := os.Stat(filepath.Join(p, "index.html")); err == nil && !st.IsDir() {
+			abs, err := filepath.Abs(p)
+			if err == nil {
+				return abs
+			}
+			return p
+		}
+	}
+	return ""
 }

@@ -29,9 +29,10 @@ func ValidateTMA(c *gin.Context) {
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		// Fallback for development if token not set
+		token := CreateSession("dev_user_tma", "Dev")
 		c.JSON(http.StatusOK, gin.H{
 			"status": "authenticated",
-			"token":  "dev_token_tma",
+			"token":  token,
 			"userId": "dev_user_tma",
 		})
 		return
@@ -52,13 +53,18 @@ func ValidateTMA(c *gin.Context) {
 	}
 	json.Unmarshal([]byte(userJSON), &user)
 
-	// In a real app, you would create/fetch the user in the DB here
 	userID := fmt.Sprintf("user_%d", user.ID)
+	displayName := user.FirstName
+	if displayName == "" {
+		displayName = user.Username
+	}
+	token := CreateSession(userID, displayName)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "authenticated",
-		"token":  "tma_token_" + userID,
+		"token":  token,
 		"userId": userID,
+		"name":   displayName,
 	})
 }
 

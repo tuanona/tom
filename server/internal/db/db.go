@@ -33,6 +33,20 @@ func InitDB(dataSourceName string) (*sqlx.DB, error) {
 		y REAL,
 		type TEXT
 	);
+	CREATE TABLE IF NOT EXISTS sessions (
+		token TEXT PRIMARY KEY,
+		user_id TEXT,
+		name TEXT,
+		created_at INTEGER
+	);
+	CREATE TABLE IF NOT EXISTS world (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		w INTEGER,
+		h INTEGER,
+		d INTEGER,
+		data BLOB,
+		updated_at INTEGER
+	);
 	`
 	db.MustExec(schema)
 

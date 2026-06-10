@@ -7,17 +7,39 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+// RequestBaseURL derives this server's public-facing base URL so QR codes
+// and the TonConnect manifest work no matter where the instance runs
+// (localhost, LAN IP, or a tunnel). PUBLIC_URL overrides detection.
+func RequestBaseURL(c *gin.Context) string {
+	if pub := os.Getenv("PUBLIC_URL"); pub != "" {
+		return strings.TrimRight(pub, "/")
+	}
+	scheme := c.GetHeader("X-Forwarded-Proto")
+	if scheme == "" {
+		if c.Request.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+	return scheme + "://" + c.Request.Host
+}
+
 // QRSession stores the state of a QR login attempt
 type QRSession struct {
 	ID        string    `json:"id"`
 	Status    string    `json:"status"` // "pending", "authenticated", "expired"
 	UserID    string    `json:"userId,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	Token     string    `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -53,9 +75,13 @@ func InitQR(c *gin.Context) {
 		qrMutex.Unlock()
 	}()
 
+	// The QR payload carries this instance's URL so ANY self-hosted server
+	// can be joined through the one central Passport: tom1|<serverURL>|<id>
+	base := RequestBaseURL(c)
 	c.JSON(http.StatusOK, gin.H{
-		"id":  id,
-		"url": "https://t.me/TomGameBot?start=login_" + id, // Placeholder Bot Username
+		"id":     id,
+		"server": base,
+		"qr":     "tom1|" + base + "|" + id,
 	})
 }
 
@@ -77,11 +103,11 @@ func PollQR(c *gin.Context) {
 	}
 
 	if session.Status == "authenticated" {
-		// Return the session token (mock for now, should be JWT)
 		c.JSON(http.StatusOK, gin.H{
 			"status": "authenticated",
-			"token":  "mock_token_" + session.UserID,
+			"token":  session.Token,
 			"userId": session.UserID,
+			"name":   session.Name,
 		})
 		return
 	}
@@ -157,8 +183,20 @@ func ScanQR(c *gin.Context) {
 		}
 	}
 
+	displayName := user.FirstName
+	if displayName == "" {
+		displayName = user.Username
+	}
+	if displayName == "" {
+		displayName = "Anon"
+	}
+
+	token := CreateSession(userIDStr, displayName)
+
 	qrMutex.Lock()
 	session.UserID = userIDStr
+	session.Name = displayName
+	session.Token = token
 	session.Status = "authenticated"
 	qrMutex.Unlock()
 

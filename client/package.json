@@ -12,9 +12,11 @@
   "dependencies": {
     "@tonconnect/sdk": "^3.3.1",
     "@tonconnect/ui-react": "^2.3.1",
+    "@types/three": "^0.184.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

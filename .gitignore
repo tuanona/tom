@@ -35,3 +35,6 @@ client/.bun/
 run_dev.bat
 run_prod.bat
 
+
+# Editor backups
+*.exe~
